@@ -5,47 +5,50 @@ import {
   getAllReadListFromLocalDB,
 } from "../utils/localDB";
 
-export const BookContext = createContext();
+export const BookContext = createContext(null);
 
 const BookProvider = ({ children }) => {
-  const [readList, setReadList] = useState(() => getAllReadListFromLocalDB());
+  // Defensive array handling: ensures readList is ALWAYS an array to avoid page crash
+  const [readList, setReadList] = useState(() => {
+    const savedData = getAllReadListFromLocalDB();
+    return Array.isArray(savedData) ? savedData : [];
+  });
+  
   const [wishList, setWishList] = useState([]);
 
-
-  console.log(readList, "readList");
+  // Logging outputs for transparent developer tracking
+  console.log("Current Context Read List Array State Structure:", readList);
 
   const handleMarkAsRead = (currentBook) => {
-    // step 1: store book id or store book object
-    // step 2: where to store
-    // step 2: array or collection
-    //  step 3: If the book is already exist then show a alert or toast
-    // step 4: if not then add the book in the array or collection
+    // 100% Strict input validation check layer
+    if (!currentBook || !currentBook.bookId) return;
 
-    addReadListToLocalDB(currentBook);
-
-    const isExistBook = readList.find(
-      (book) => book.bookId === currentBook.bookId,
+    // Check if data array safely handles evaluation rules
+    const safeReadList = Array.isArray(readList) ? readList : [];
+    const isExistBook = safeReadList.find(
+      (book) => book?.bookId === currentBook.bookId
     );
 
     if (isExistBook) {
       toast.error("The book is already exist");
     } else {
-      setReadList([...readList, currentBook]);
-      toast.success(`${currentBook.bookName} is added to read list`);
+      // LocalDB side effect update parameters action execute
+      addReadListToLocalDB(currentBook);
+      setReadList([...safeReadList, currentBook]);
+      toast.success(`${currentBook.bookName || "Book"} is added to read list`);
     }
 
-    console.log(currentBook, readList, "book");
+    console.log("Processed Action Result (Read List Stack):", currentBook, readList);
   };
 
   const handleWishList = (currentBook) => {
-    // step 1: store book id or store book object
-    // step 2: where to store
-    // step 2: array or collection
-    //  step 3: If the book is already exist then show a alert or toast
-    // step 4: if not then add the book in the array or collection
+    if (!currentBook || !currentBook.bookId) return;
 
-    const isExistInReadList = readList.find(
-      (book) => book.bookId === currentBook.bookId,
+    const safeReadList = Array.isArray(readList) ? readList : [];
+    const safeWishList = Array.isArray(wishList) ? wishList : [];
+
+    const isExistInReadList = safeReadList.find(
+      (book) => book?.bookId === currentBook.bookId
     );
 
     if (isExistInReadList) {
@@ -53,21 +56,22 @@ const BookProvider = ({ children }) => {
       return;
     }
 
-    const isExistBook = wishList.find(
-      (book) => book.bookId === currentBook.bookId,
+    const isExistBook = safeWishList.find(
+      (book) => book?.bookId === currentBook.bookId
     );
 
     if (isExistBook) {
       toast.error("The book is already exist");
     } else {
-      setWishList([...wishList, currentBook]);
-      toast.success(`${currentBook.bookName} is added to wish list`);
+      setWishList([...safeWishList, currentBook]);
+      toast.success(`${currentBook.bookName || "Book"} is added to wish list`);
     }
 
-    console.log(currentBook, readList, "book");
+    console.log("Processed Action Result (Wish List Stack):", currentBook, readList);
   };
 
-  const data = {
+  // Wrapped Data Export Variables Matrix 
+  const contextData = {
     readList,
     setReadList,
     handleMarkAsRead,
@@ -75,7 +79,12 @@ const BookProvider = ({ children }) => {
     setWishList,
     handleWishList,
   };
-  return <BookContext.Provider value={data}>{children}</BookContext.Provider>;
+
+  return (
+    <BookContext.Provider value={contextData}>
+      {children}
+    </BookContext.Provider>
+  );
 };
 
 export default BookProvider;
